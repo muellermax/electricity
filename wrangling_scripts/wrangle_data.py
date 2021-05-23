@@ -52,7 +52,13 @@ def query_generation(country_code, days_ago):
     new_cols = [' '.join(w for w in col.split() if w not in noise_words_set)
          for col in cols
          ]
+
     df.columns = [new_cols]
+    
+    # Flatten multiindex columns (again!) and sort out consumption columns
+    df.columns = [' '.join(col).strip() for col in df.columns.values]
+    cols = [c for c in df.columns if 'Consumption' not in c]
+    df = df[cols]
 
     # Transpose DataFrame, calculate std and sort by std
     df = df.T
