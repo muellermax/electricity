@@ -1,74 +1,62 @@
+# import libraries
 import pandas as pd
-import plotly.graph_objs as go
+from datetime import datetime, timedelta
+import plotly.graph_objects as go
 
-# Use this file to read in your data and prepare the plotly visualizations. The path to the data files are in
-# `data/file_name.csv`
+from entsoe import EntsoePandasClient # doc: https://github.com/EnergieID/entsoe-py
 
-# Read in Covid-19 cases and deaths datasets from CSSE at John Hopkins University on Github.
-csse_cases_all = pd.read_csv(
-    'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv')
-csse_deaths_all = pd.read_csv(
-    'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv')
+from matplotlib import pyplot as plt
+import seaborn as sns
 
-latin_america = ['Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Ecuador', 'French', 'Guiana',
-                 'Guyana Paraguay', 'Peru', 'Suriname', 'Uruguay', 'Venezuela']
+# Information about Entsoe: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
 
+# read token (stored in text file)
+with open('token.txt', 'r') as file:
+    data = file.read().replace('\n', '')
 
-# Function to retrieve data for a single country from the CSSE data.
-def single_country(country, df):
+# connect to ENTSOE API
+client = EntsoePandasClient(api_key=data)
+
+# Define function to query generation
+def query_generation(country_code, days_ago):
     """
-    Function to provide Dataframe with cumulated cases of Covid-19
-    out of CSSE data for a single country.
-
-    Args:
-        country (string): Name of country whose timeline should be prepared.
-        df (Dataframe): Name of dataframe (confirmed cases or deaths) that should be included.
-
-    Returns:
-        country_timeline (Dataframe): Dataframe with two columns, datetime and confirmed cases.
+    Function to query the generation for a given country for a specific period. 
+    
+    Input: 
+        country_code (String): The country code, see here a list: https://github.com/EnergieID/entsoe-py
+        days_ago (Int): Number of days in the past that should be considered. 
+        
+    Output: 
+        generation (DataFrame): A DataFrame with the generation during the last [days_ago] days, 
+        sorted by the variance of the energy sources. 
     """
+    
+    # define start and end date
+    n_days_ago = (1*days_ago)
+    date_today = datetime.today()
+    date_past = date_today - timedelta(days=n_days_ago)
 
-    # Select rows for the given country and apply pd.melt to unpivot DataFrame
-    # from wide to long format. Drop for now unnessary rows ('Province/State', 'Lat', 'Long').
-    country_timeline = df[df['Country/Region'] == country]
-    country_timeline = country_timeline.drop(['Province/State', 'Country/Region', 'Lat', 'Long'], axis=1)
-    country_timeline = pd.melt(country_timeline)
-    # country_timeline = country_timeline.drop(country_timeline.index[[0, 1, 2, 3]])
+    start = pd.Timestamp(date_past.strftime('%Y%m%d'), tz='UTC')
+    end = pd.Timestamp(date_today.strftime('%Y%m%d'), tz='UTC')
+    
+    # Get generation for given time and country code
+    df = client.query_generation(country_code, start=start,end=end, psr_type=None)
 
-    # Rename columns and apply pandas datetime function.
-    country_timeline.columns = ['date', 'cases']
-    country_timeline['date'] = country_timeline['date'].astype('datetime64[ns]')
+    # Flatten multiindex columns and sort out consumption columns
+    df.columns = [' '.join(col).strip() for col in df.columns.values]
+    cols = [c for c in df.columns if 'Consumption' not in c]
+    df = df[cols]
 
-    return country_timeline[country_timeline.cases != 0]
+    # Transpose DataFrame, calculate std and sort by std
+    df = df.T
+    df['variation'] = df.std(numeric_only=True, axis=1)
+    df = df.sort_values('variation')
 
-
-# Function to retrieve data for the daily increase from the CSSE data.
-def country_daily(country, df, days=7):
-    """
-    Function to provide the daily increase of confirmed cases of
-    Covid-19 in a chosen country. An extra column includes the rolling
-    average for a given amount of days.
-
-    Args:
-        country (string): Name of country whose timeline should be prepared.
-        days (int), optional: Number of days for rolling average.
-        df (Dataframe): Name of dataframe (confirmed cases or deaths) that should be included.
-
-    Returns:
-        Dataframe with three columns: date, daily increase and rolling average.
-    """
-
-    # Apply single_country_confirmed function and retrieve difference between
-    # two dates. Add one column with rolling average and finally fill NaNs will 0.
-    country_df = single_country(country, df)
-    country_df['cases'] = country_df.cases.diff()
-
-    confirmed_cases_series = country_df.cases
-    country_df['rolling_avg'] = confirmed_cases_series.rolling(days).mean()
-
-    country_df.columns = ['date', 'daily increase', 'rolling_avg']
-
-    return country_df.fillna(0)
+    # Remove extra std column and tranpose DataFrame back
+    df = df.drop('variation', axis = 1)
+    generation = df.T
+    
+    return generation
 
 
 def return_figures():
@@ -82,159 +70,32 @@ def return_figures():
 
     """
 
-    # first chart plots daily increase of Covid-19 infections in Chile and rolling average.
-    # as a line chart
+    df = query_generation('DE', 7)
 
     graph_one = []
-    df = country_daily('Chile', csse_cases_all)
-    x_val = df.date.tolist()
-    y_val = df['daily increase'].tolist()
+    x_val = df.index
 
-    graph_one.append(
-        go.Bar(
-            x=x_val,
-            y=y_val,
-            name='Confirmed cases',
-            hovertemplate='%{y:,.2}'
+    for energy_source in df.columns:
+
+        y_val = df[energy_source].tolist()
+
+        graph_one.append(
+            go.Scatter(
+                x=x_val,
+                y=y_val,
+                mode='lines',
+                name=energy_source,
+                stackgroup = 'one'
+            )
         )
-    )
 
-    y_val2 = df.rolling_avg.tolist()
-
-    graph_one.append(
-        go.Scatter(
-            x=x_val,
-            y=y_val2,
-            mode='lines',
-            name='Rolling Average',
-            hovertemplate='%{y:,.2r}'
-        )
-    )
-
-    layout_one = dict(title='Daily increase of confirmed cases of Covid-19 in Chile',
+    layout_one = dict(title='Generation in Germany',
                       xaxis=dict(title='Date'),
-                      yaxis=dict(title='Confirmed cases'),
+                      yaxis=dict(title='Generation'),
                       )
-
-    # second chart plots daily increase of Covid-19 deaths in Chile and rolling average.
-    graph_two = []
-    df = country_daily('Chile', csse_deaths_all)
-    x_val = df.date.tolist()
-    y_val = df['daily increase'].tolist()
-
-    graph_two.append(
-        go.Bar(
-            x=x_val,
-            y=y_val,
-            name='Confirmed deaths',
-            hovertemplate='%{y:,.2}'
-        )
-    )
-
-    y_val2 = df.rolling_avg.tolist()
-
-    graph_two.append(
-        go.Scatter(
-            x=x_val,
-            y=y_val2,
-            mode='lines',
-            name='Rolling Average',
-            hovertemplate='%{y:,.2r}'
-        )
-    )
-
-    layout_two = dict(title='Daily increase of deaths caused by Covid-19 in Chile',
-                      xaxis=dict(title='Date', ),
-                      yaxis=dict(title='Deaths'),
-                      )
-
-    # third chart plots confirmed cases in South America
-    graph_three = []
-
-    for country in latin_america:
-        df = single_country(country, csse_cases_all)
-        x_val = df.date.tolist()
-        y_val = df.cases.tolist()
-
-        graph_three.append(
-            go.Scatter(
-                x=x_val,
-                y=y_val,
-                mode='lines',
-                name=country,
-                hovertemplate='%{y:,.2}'
-
-            )
-        )
-
-    layout_three = dict(title='Total confirmed cases of Covid-19 in South America',
-                        xaxis=dict(title='Date'),
-                        yaxis=dict(title='Confirmed cases (log scale)',
-                                   type='log')
-                        )
-
-    # Fourth chart plots deaths caused by Covid-19 in South America
-
-    graph_four = []
-
-    for country in latin_america:
-        df = single_country(country, csse_deaths_all)
-        x_val = df.date.tolist()
-        y_val = df.cases.tolist()
-
-        graph_four.append(
-            go.Scatter(
-                x=x_val,
-                y=y_val,
-                mode='lines',
-                name=country,
-                hovertemplate='%{y:,.2}'
-
-            )
-        )
-
-    layout_four = dict(title='Total deaths caused by Covid-19 in South America',
-                       xaxis=dict(title='Date'),
-                       yaxis=dict(title='Deaths caused by Covid-19 (log scale)',
-                                  type='log')
-                       )
-
-    # Fifth chart is a single value showing the total amount of cases in Chile and the increase.
-
-    df = single_country('Chile', csse_cases_all)
-    graph_five = go.Figure(go.Indicator(
-                 title={'text': 'Covid-19 cases in Chile'},
-                 mode='number+delta',
-                 value=df.iloc[-1, 1],
-                 delta={'position': "top",
-                        'reference': df.iloc[-2, 1],
-                        'increasing': {'color': '#8b0000'},
-                        'valueformat': '{,}'},
-                 number={'valueformat': '{,}'})
-                 )
-
-    # Sixths chart is a single value showing the total amount of deaths in Chile and the increase.
-
-    df = single_country('Chile', csse_deaths_all)
-    graph_six = go.Figure(go.Indicator(
-                 title={'text': 'Covid-19 deaths in Chile'},
-                 mode='number+delta',
-                 value=df.iloc[-1, 1],
-                 delta={'position': "top",
-                        'reference': df.iloc[-2, 1],
-                        'increasing': {'color': '#8b0000'},
-                        'valueformat': '{,}'},
-                 number={'valueformat': '{,}'})
-                 )
-
 
     # append all charts to the figures list
     figures = []
     figures.append(dict(data=graph_one, layout=layout_one))
-    figures.append(dict(data=graph_two, layout=layout_two))
-    figures.append(dict(data=graph_three, layout=layout_three))
-    figures.append(dict(data=graph_four, layout=layout_four))
-    figures.append(dict(data=graph_five))
-    figures.append(dict(data=graph_six))
 
     return figures
