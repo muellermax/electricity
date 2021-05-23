@@ -70,7 +70,7 @@ def return_figures():
 
     """
 
-    df = query_generation('DE', 7)
+    df = query_generation('DE', 14)
 
     graph_one = []
     x_val = df.index
