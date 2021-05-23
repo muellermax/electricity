@@ -107,7 +107,8 @@ def return_figures():
     layout_one = dict(title='Generation in Germany',
                       xaxis=dict(title='Date'),
                       yaxis=dict(title='Generation'),
-                      colorway = colorway,
+                      colorway = colorway_elec,
+                      plot_bgcolor = '#E8E8E8',
                       )
 
     # append all charts to the figures list
