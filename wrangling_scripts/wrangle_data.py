@@ -10,6 +10,8 @@ import seaborn as sns
 
 # Information about Entsoe: https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html
 
+colorway_elec = px.colors.qualitative.Prism
+
 # read token (stored in text file)
 with open('token.txt', 'r') as file:
     data = file.read().replace('\n', '')
@@ -105,6 +107,7 @@ def return_figures():
     layout_one = dict(title='Generation in Germany',
                       xaxis=dict(title='Date'),
                       yaxis=dict(title='Generation'),
+                      colorway = colorway,
                       )
 
     # append all charts to the figures list
