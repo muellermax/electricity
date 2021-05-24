@@ -105,7 +105,7 @@ def return_figures():
 
     layout_one = dict(title='Generation in Germany during the last 14 days',
                       xaxis=dict(title='Date'),
-                      yaxis=dict(title='Generation'),
+                      yaxis=dict(title='Net Generation (MW)'),
                       plot_bgcolor = '#E8E8E8'
                       )
 
