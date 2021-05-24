@@ -106,6 +106,8 @@ def return_figures():
     layout_one = dict(title='Generation in Germany during the last 14 days',
                       xaxis=dict(title='Date'),
                       yaxis=dict(title='Net Generation (MW)'),
+                      colorway = ['#fefe22', '#1e90ff', '#8b4513', '#191970', '#696969', '#778899', '#87cefa', '#ff0038', '#6495ed', '#6ca0dc', '#006400', '#32cd32', '#808080', '#778899', '#77dd77', '#c0362c'],
+                      # gelb, hellblau, braun, dunkelblau, dunkelgrau, graublau, hellblau (Hydropumpe), rot, mittelblau, mittelblau#2, dunkelgrün Waste, grün, grau (rest), grau Öl, grün, braun
                       plot_bgcolor = '#E8E8E8'
                       )
 
