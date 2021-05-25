@@ -111,7 +111,7 @@ def return_figures():
                       plot_bgcolor = '#E8E8E8',
                       hovermode = 'closest', 
                       hoverdistance = -1,
-                      height = 400
+                      height = 500
                       )
 
     # append all charts to the figures list
