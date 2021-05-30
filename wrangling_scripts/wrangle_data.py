@@ -127,7 +127,7 @@ def return_figures():
                       colorway = ['#008000', '#ffa500', '#ff0000', '#000080', '#008080', '#808080', '#a52a2a', '#1e90ff', '#ffc40c'],
                       plot_bgcolor = '#E8E8E8',
                       hovermode = 'closest', 
-                      hoverdistance = 0,
+                      hoverdistance = -1,
                       height = 500
                       )
 
