@@ -60,15 +60,6 @@ def query_generation(country_code, days_ago):
     df.columns = [' '.join(col).strip() for col in df.columns.values]
     cols = [c for c in df.columns if 'Consumption' not in c]
     df = df[cols]
-
-    # Transpose DataFrame, calculate std and sort by std
-    df = df.T
-    df['variation'] = df.std(numeric_only=True, axis=1)
-    df = df.sort_values('variation')
-
-    # Remove extra std column and tranpose DataFrame back
-    df = df.drop('variation', axis = 1)
-    df = df.T
     
     # Summarize different sources
     try:
@@ -87,6 +78,15 @@ def query_generation(country_code, days_ago):
 
     except: 
         pass
+
+    # Transpose DataFrame, calculate std and sort by std
+    df = df.T
+    df['variation'] = df.std(numeric_only=True, axis=1)
+    df = df.sort_values('variation')
+
+    # Remove extra std column and tranpose DataFrame back
+    df = df.drop('variation', axis = 1)
+    df = df.T
 
     return df
 
