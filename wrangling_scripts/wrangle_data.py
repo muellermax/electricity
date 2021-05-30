@@ -68,9 +68,27 @@ def query_generation(country_code, days_ago):
 
     # Remove extra std column and tranpose DataFrame back
     df = df.drop('variation', axis = 1)
-    generation = df.T
+    df = df.T
     
-    return generation
+    # Summarize different sources
+    try:
+    
+        # Summarize renewable energy sources
+        df['Other Renewables'] = df['Geothermal'] + df['Other renewable'] + df['Wind Offshore'] + df['Hydro Run-of-river and poundage'] + df['Hydro Water Reservoir']
+        df = df.drop(['Geothermal', 'Other renewable', 'Wind Offshore', 'Hydro Run-of-river and poundage', 'Hydro Water Reservoir'], axis = 1)
+
+        # Summarize fossil sources
+        df['Fossil Oil, Fossil Gas, Hard coal'] = df['Fossil Oil'] + df['Fossil Hard coal'] + df['Fossil Gas']
+        df = df.drop(['Fossil Oil', 'Fossil Hard coal', 'Fossil Gas'], axis = 1)
+
+        # Summarize other sources
+        df['Other sources'] = df['Other'] + df['Waste']
+        df = df.drop(['Other', 'Waste'], axis = 1)
+
+    except: 
+        pass
+
+    return df
 
 
 def return_figures():
@@ -106,7 +124,7 @@ def return_figures():
     layout_one = dict(title='Generation in Germany during the last 14 days',
                       xaxis=dict(title='Date'),
                       yaxis=dict(title='Net Generation (MW)'),
-                      colorway = ['#c0362c', '#77dd77', '#778899', '#808080', '#32cd32', '#006400', '#6ca0dc', '#6495ed', '#ff0038', '#87cefa', '#778899', '#696969', '#191970', '#8b4513', '#1e90ff', '#ffc40c'],
+                      # colorway = ['#c0362c', '#77dd77', '#778899', '#808080', '#32cd32', '#006400', '#6ca0dc', '#6495ed', '#ff0038', '#87cefa', '#778899', '#696969', '#191970', '#8b4513', '#1e90ff', '#ffc40c'],
                       # gelb, hellblau, braun, dunkelblau, dunkelgrau, graublau, hellblau (Hydropumpe), rot, mittelblau, mittelblau#2, dunkelgrün Waste, grün, grau (rest), grau Öl, grün, braun
                       plot_bgcolor = '#E8E8E8',
                       hovermode = 'closest', 
